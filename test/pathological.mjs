@@ -28,6 +28,13 @@ async function test_pattern (str, mdOpts) {
   return result
 }
 
+// Raw HTML patterns are meaningless without `html: true`. Prepend a tag
+// to make sure HTML is really enabled.
+async function test_html_pattern (str) {
+  const result = await test_pattern('<b>' + str, { html: true })
+  assert.ok(result.startsWith('<p><b>'), 'HTML must be enabled')
+}
+
 describe('Pathological sequences speed', () => {
   it('Integrity check', async () => {
     assert.strictEqual(
@@ -114,8 +121,11 @@ describe('Pathological sequences speed', () => {
       await test_pattern('[a](b'.repeat(30000))
     })
 
-    it('unclosed <!--', async () => {
-      await test_pattern('</' + '<!--'.repeat(100000))
+    it('unclosed <!--, <?, <!A, <![CDATA[', async () => {
+      await test_html_pattern('</' + '<!--'.repeat(150000))
+      await test_html_pattern('<?x'.repeat(400000))
+      await test_html_pattern('<!A'.repeat(250000))
+      await test_html_pattern('<![CDATA['.repeat(100000))
     })
 
     it('empty lines in deeply nested lists', async () => {
@@ -173,6 +183,15 @@ describe('Pathological sequences speed', () => {
     it('smartquotes with mismatched opener and closer types', async () => {
       await test_pattern('"a '.repeat(100000) + "b' ".repeat(100000), { typographer: true })
       await test_pattern("'a ".repeat(100000) + 'b" '.repeat(100000), { typographer: true })
+    })
+
+    it('reference with multiline title', async () => {
+      await test_pattern('[a]: /u "' + 'x\n'.repeat(300000))
+      await test_pattern('[a]: /u "' + 'x\n'.repeat(300000) + '"')
+    })
+
+    it('reference with multiline label', async () => {
+      await test_pattern('[' + 'a\n'.repeat(300000))
     })
   })
 })
